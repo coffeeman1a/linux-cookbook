@@ -149,6 +149,10 @@ if [[ "$user_pw" != "$user_pw_test" ]]; then
     exit 0
 fi
 
+if [[ "$crypto" == true ]]; then
+    read -rsp "Enter luks password: " luks_pw; echo
+fi
+
 read -rp "Continue with installation [y/N]: " ok; echo
 if [[ "$ok" != "y" && "$ok" != "Y" ]]; then
     echo "Installation aborted by user"
@@ -186,14 +190,16 @@ mkfs.fat -F32 "$esp_part"
 
 if [[ "$crypto" == true ]]; then
     echo "Setting up LUKS on $second_part..."
-    cryptsetup luksFormat "$second_part"
-    cryptsetup open "$second_part" cryptroot
-
+    printf "%s" "$luks_pw" | \
+        cryptsetup luksFormat "$second_part" --batch-mode --key-file=-
+    printf "%s" "$luks_pw" | \
+        cryptsetup open /dev/sda2 cryptroot --key-file=-
     echo "Formatting decrypted root (/dev/mapper/cryptroot)..."
     mkfs.ext4 /dev/mapper/cryptroot
     
     echo "Mounting root partition on /mnt..."
     mount /dev/mapper/cryptroot /mnt
+    echo "cryptroot UUID=<UUID-раздела> none luks" >> /mnt/etc/crypttab
 else
     echo "Formatting root partition ($second_part)..."
     mkfs.ext4 "$second_part"
@@ -203,6 +209,9 @@ fi
 
 echo "Mounting boot partition on /mnt/boot/efi..."
 mount --mkdir "$esp_part" /mnt/boot/efi
+
+crypto_UUID=$(blkid -s UUID -o value "$second_part")
+
 
 echo "Installing main packages..."
 pacstrap -K /mnt \
@@ -450,6 +459,7 @@ if [[ "${is_laptop}" == true ]]; then
 fi
 
 echo "Rebuilding initramfs..."
+sed -i 's/\(HOOKS=.*block\)/\1 encrypt/' /etc/mkinitcpio.conf
 mkinitcpio -P
 
 echo "Installing and configuring GRUB for UEFI..."
