@@ -170,13 +170,16 @@ else
         mkpart primary ext4 1024MiB 100%
 fi
 
-if [[ "$target" =~ [0-9]$ ]]; then
-  esp_part="${target}1"
-  second_part="${target}2"
-else
-  esp_part="${target}p1"
-  second_part="${target}p2"
-fi
+case "$target" in
+  /dev/nvme*|/dev/mmcblk*)
+    esp_part="${target}p1"
+    second_part="${target}p2"
+    ;;
+  *)
+    esp_part="${target}1"
+    second_part="${target}2"
+    ;;
+esac
 
 echo "Formatting EFI System Partition ($esp_part)..."
 mkfs.fat -F32 "$esp_part"
