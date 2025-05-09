@@ -230,7 +230,7 @@ pacstrap -K /mnt \
 if [[ -n "$cpu_model" ]]; then
     case "$cpu_model" in
         intel)  echo "Installing intel-ucode..."; pacstrap -K /mnt intel-ucode ;;
-        amd)    echo "Installing amd-ucode..."; pacstrap -K /mnt intel-ucode ;;
+        amd)    echo "Installing amd-ucode..."; pacstrap -K /mnt amd-ucode ;;
         # microcode fixes
     esac
 fi
