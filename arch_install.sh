@@ -9,6 +9,7 @@ is_laptop=false
 locale=""
 tz=""
 hostname="arch"
+target=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -108,7 +109,16 @@ else
 fi
 echo "Hostname: $hostname"
 
-sleep 10
+read -rsp "Enter root password: " root_pw; echo
+
+read -rp "Enter your username: " username
+read -rsp "Enter user password: " user_pw; echo
+
+read -rp "Continue with installation [y/N]: " ok; echo
+if [[ "$ok" != "y" && "$ok" != "Y" ]]; then
+    echo "Installation aborted by user"
+    exit 0
+fi
 
 echo "Installing main packages..."
 pacstrap -K /mnt \
@@ -311,14 +321,12 @@ echo "Setting hostname..."
 echo "$hostname" > /etc/hostname
 
 echo "Setting root password..."
-read -rsp "Enter root password: " root_pw; echo
-echo "root:\${root_pw}" | chpasswd
+echo "root:${root_pw}" | chpasswd
 
 echo "Creating a regular user..."
-read -rp "Enter your username: " username
-useradd -m -G wheel -s /bin/bash "\$username"
-read -rsp "Enter user password: " user_pw; echo
-echo "\${username}:\${user_pw}" | chpasswd
+useradd -m -G wheel -s /bin/bash "$username"
+
+echo "${username}:${user_pw}" | chpasswd
 
 echo "Adding wheel group to sudoers..."
 sed -i 's/^# %wheel/%wheel/' /etc/sudoers
