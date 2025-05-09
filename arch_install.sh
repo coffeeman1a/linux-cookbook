@@ -311,14 +311,14 @@ echo "Setting hostname..."
 echo "$hostname" > /etc/hostname
 
 echo "Setting root password..."
-echo "Set root password:"
-passwd
+read -rsp "Enter root password: " root_pw; echo
+echo "root:${root_pw}" | chpasswd
 
 echo "Creating a regular user..."
 read -rp "Enter your username: " username
 useradd -m -G wheel -s /bin/bash "\$username"
-echo "Set password for \$username:"
-passwd "\$username"
+read -rsp "Enter user password: " user_pw; echo
+echo "${username}:${user_pw}" | chpasswd
 
 echo "Adding wheel group to sudoers..."
 sed -i 's/^# %wheel/%wheel/' /etc/sudoers
