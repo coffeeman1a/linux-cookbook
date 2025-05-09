@@ -9,7 +9,25 @@ is_laptop=false
 locale=""
 tz=""
 hostname="arch"
-target=""
+crypt=false
+
+print_help() {
+  cat <<EOF
+    Usage: $0 [OPTIONS]
+
+    Options:
+    --cpu-model <intel|amd>    Install Intel or AMD CPU microcode
+    --vpn                      Include IPsec/L2TP VPN support
+    --bltz                     Include Bluetooth support
+    --wifi                     Include Wi-Fi support
+    --laptop                   Optimize for laptops (TLP, thermald, etc.)
+    --tz <Region/City>         Set timezone (default: UTC)
+    --locale <xx_YY.UTF-8>     Enable additional locale (default: en_US.UTF-8)
+    --hostname <name>          Set system hostname (default: arch)
+    --crypt                    Encrypt root partition with LUKS
+    -h, --help                 Show this help message and exit
+EOF
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -65,8 +83,12 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             ;;
+        --crypt)
+            crypt=true
+            shift
+            ;;
         -h|--help)
-            echo "try using: $0 [--cpu-model <intel|amd>] [--vpn] [--bltz] [--wifi] [--laptop] [--tz <Europe/Moscow>] [--locale <ru_RU.UTF-8>] [--hostname <arch>]"
+            print_help
             exit 0
             ;;
         *)
@@ -109,16 +131,75 @@ else
 fi
 echo "Hostname: $hostname"
 
+lsblk
+read -rp "Enter target partition: " target; echo
+
 read -rsp "Enter root password: " root_pw; echo
+read -rsp "Repeat root password: " root_pw_test; echo
+if [[ "$root_pw" != "$root_pw_test" ]]; then 
+    echo "Password mismatch"
+    exit 0
+fi
 
 read -rp "Enter your username: " username
 read -rsp "Enter user password: " user_pw; echo
+read -rsp "Repeat user password: " user_pw_test; echo
+if [[ "$user_pw" != "$user_pw_test" ]]; then 
+    echo "Password mismatch"
+    exit 0
+fi
 
 read -rp "Continue with installation [y/N]: " ok; echo
 if [[ "$ok" != "y" && "$ok" != "Y" ]]; then
     echo "Installation aborted by user"
     exit 0
 fi
+
+echo "Marking partitions on $target..."
+if [[ "$crypto" == true ]]; then
+    parted "$target" --script \
+        mklabel gpt \
+        mkpart ESP fat32 1MiB 1024MiB \
+        set 1 esp on \
+        mkpart cryptroot 1024MiB 100%
+else
+    parted "$target" --script \
+        mklabel gpt \
+        mkpart ESP fat32 1MiB 1024MiB \
+        set 1 esp on \
+        mkpart primary ext4 1024MiB 100%
+fi
+
+if [[ "$target" =~ [0-9]$ ]]; then
+  esp_part="${target}1"
+  second_part="${target}2"
+else
+  esp_part="${target}p1"
+  second_part="${target}p2"
+fi
+
+echo "Formatting EFI System Partition ($esp_part)..."
+mkfs.fat -F32 "$esp_part"
+
+if [[ "$crypto" == true ]]; then
+    echo "Setting up LUKS on $second_part..."
+    cryptsetup luksFormat "$second_part"
+    cryptsetup open "$second_part" cryptroot
+
+    echo "Formatting decrypted root (/dev/mapper/cryptroot)..."
+    mkfs.ext4 /dev/mapper/cryptroot
+    
+    echo "Mounting root partition on /mnt..."
+    mount /dev/mapper/cryptroot /mnt
+else
+    echo "Formatting root partition ($second_part)..."
+    mkfs.ext4 "$second_part"
+    echo "Mounting root partition on /mnt..."
+    mount "$second_part" /mnt
+fi
+
+echo "Mounting boot partition on /mnt/boot/efi..."
+mount --mkdir "$esp_part" /mnt/boot/efi
 
 echo "Installing main packages..."
 pacstrap -K /mnt \
@@ -304,6 +385,16 @@ genfstab -U /mnt >> /mnt/etc/fstab
 echo "Entering chroot to configure the system..."
 arch-chroot /mnt /bin/bash <<EOF
 set -euo pipefail
+
+echo "Creating 4 GiB swap-file..."
+fallocate -l 4G /swapfile
+chmod 600       /swapfile
+mkswap          /swapfile
+swapon /swapfile
+
+cat >> /etc/fstab <<FSTAB
+/swapfile none swap defaults 0 0
+FSTAB
 
 echo "Setting timezone..."
 ln -sf /usr/share/zoneinfo/\${tz:-UTC} /etc/localtime
