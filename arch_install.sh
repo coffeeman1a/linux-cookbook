@@ -312,13 +312,13 @@ echo "$hostname" > /etc/hostname
 
 echo "Setting root password..."
 read -rsp "Enter root password: " root_pw; echo
-echo "root:${root_pw}" | chpasswd
+echo "root:\${root_pw}" | chpasswd
 
 echo "Creating a regular user..."
 read -rp "Enter your username: " username
 useradd -m -G wheel -s /bin/bash "\$username"
 read -rsp "Enter user password: " user_pw; echo
-echo "${username}:${user_pw}" | chpasswd
+echo "\${username}:\${user_pw}" | chpasswd
 
 echo "Adding wheel group to sudoers..."
 sed -i 's/^# %wheel/%wheel/' /etc/sudoers
@@ -347,7 +347,7 @@ if [[ "\${is_laptop}" == true ]]; then
   systemctl enable tlp thermald upower
 fi
 
-echo "Rebuilding initframes..."
+echo "Rebuilding initramfs..."
 mkinitcpio -P
 
 echo "Installing and configuring GRUB for UEFI..."
