@@ -331,19 +331,19 @@ systemctl enable cups.service
 systemctl enable smartd.service
 systemctl enable fwupd.service
 
-if [[ "\${do_vpn}" == true ]]; then
+if [[ "${do_vpn}" == true ]]; then
   systemctl enable strongswan xl2tpd
 fi
 
-if [[ "\${do_bltz}" == true ]]; then
+if [[ "${do_bltz}" == true ]]; then
   systemctl enable bluetooth
 fi
 
-if [[ "\${do_wifi}" == true ]]; then
+if [[ "${do_wifi}" == true ]]; then
   systemctl enable wpa_supplicant
 fi
 
-if [[ "\${is_laptop}" == true ]]; then
+if [[ "${is_laptop}" == true ]]; then
   systemctl enable tlp thermald upower
 fi
 
