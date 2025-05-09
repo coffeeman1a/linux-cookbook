@@ -9,7 +9,7 @@ is_laptop=false
 locale=""
 tz=""
 hostname="arch"
-crypt=false
+crypto=false
 
 print_help() {
   cat <<EOF
@@ -24,7 +24,7 @@ print_help() {
     --tz <Region/City>         Set timezone (default: UTC)
     --locale <xx_YY.UTF-8>     Enable additional locale (default: en_US.UTF-8)
     --hostname <name>          Set system hostname (default: arch)
-    --crypt                    Encrypt root partition with LUKS
+    --crypto                   Encrypt root partition with LUKS
     -h, --help                 Show this help message and exit
 EOF
 }
@@ -83,8 +83,8 @@ while [[ $# -gt 0 ]]; do
                 exit 1
             fi
             ;;
-        --crypt)
-            crypt=true
+        --crypto)
+            crypto=true
             shift
             ;;
         -h|--help)
