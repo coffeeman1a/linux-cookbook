@@ -134,7 +134,6 @@ pacstrap -K /mnt \
     git \
     htop \
     rsync \
-    yay \
     trash-cli \
     tree \
     jq \
