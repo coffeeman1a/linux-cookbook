@@ -409,7 +409,7 @@ cat >> /etc/fstab <<FSTAB
 /swapfile none swap defaults 0 0
 FSTAB
 
-mkdir /mnt/etc/crypttab
+mkdir /etc/crypttab
 echo "cryptroot UUID="$crypto_UUID" none luks" >> /mnt/etc/crypttab
 
 echo "Setting timezone..."
