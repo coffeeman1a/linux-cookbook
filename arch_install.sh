@@ -201,8 +201,6 @@ if [[ "$crypto" == true ]]; then
     echo "Mounting root partition on /mnt..."
     mount /dev/mapper/cryptroot /mnt
     crypto_UUID=$(blkid -s UUID -o value "$second_part")
-    mkdir /mnt/etc/crypttab
-    echo "cryptroot UUID="$crypto_UUID" none luks" >> /mnt/etc/crypttab
 else
     echo "Formatting root partition ($second_part)..."
     mkfs.ext4 "$second_part"
@@ -410,6 +408,9 @@ swapon /swapfile
 cat >> /etc/fstab <<FSTAB
 /swapfile none swap defaults 0 0
 FSTAB
+
+mkdir /mnt/etc/crypttab
+echo "cryptroot UUID="$crypto_UUID" none luks" >> /mnt/etc/crypttab
 
 echo "Setting timezone..."
 ln -sf /usr/share/zoneinfo/\${tz:-UTC} /etc/localtime
