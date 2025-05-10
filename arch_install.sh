@@ -201,6 +201,7 @@ if [[ "$crypto" == true ]]; then
     echo "Mounting root partition on /mnt..."
     mount /dev/mapper/cryptroot /mnt
     crypto_UUID=$(blkid -s UUID -o value "$second_part")
+    mkdir /mnt/etc/crypttab
     echo "cryptroot UUID="$crypto_UUID" none luks" >> /mnt/etc/crypttab
 else
     echo "Formatting root partition ($second_part)..."
