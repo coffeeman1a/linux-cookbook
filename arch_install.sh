@@ -199,7 +199,8 @@ if [[ "$crypto" == true ]]; then
     
     echo "Mounting root partition on /mnt..."
     mount /dev/mapper/cryptroot /mnt
-    echo "cryptroot UUID=<UUID-раздела> none luks" >> /mnt/etc/crypttab
+    crypto_UUID=$(blkid -s UUID -o value "$second_part")
+    echo "cryptroot UUID="$crypto_UUID" none luks" >> /mnt/etc/crypttab
 else
     echo "Formatting root partition ($second_part)..."
     mkfs.ext4 "$second_part"
@@ -210,7 +211,7 @@ fi
 echo "Mounting boot partition on /mnt/boot/efi..."
 mount --mkdir "$esp_part" /mnt/boot/efi
 
-crypto_UUID=$(blkid -s UUID -o value "$second_part")
+
 
 
 echo "Installing main packages..."
