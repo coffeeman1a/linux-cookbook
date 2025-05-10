@@ -153,7 +153,7 @@ fi
 if [[ "$crypto" == true ]]; then
     read -rsp "Enter luks password: " luks_pw; echo
     read -rsp "Repeat luks password: " luks_pw_test; echo
-    if [[ "$luks_pw" != "$luks_pw_test"]]; then
+    if [[ "$luks_pw" != "$luks_pw_test" ]]; then
         echo "Password mismatch"
         exit 0
     fi
