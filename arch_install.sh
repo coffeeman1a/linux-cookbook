@@ -194,7 +194,7 @@ if [[ "$crypto" == true ]]; then
     printf "%s" "$luks_pw" | \
         cryptsetup luksFormat "$second_part" --batch-mode --key-file=-
     printf "%s" "$luks_pw" | \
-        cryptsetup open /dev/sda2 cryptroot --key-file=-
+        cryptsetup open "$second_part" cryptroot --key-file=-
     echo "Formatting decrypted root (/dev/mapper/cryptroot)..."
     mkfs.ext4 /dev/mapper/cryptroot
     
