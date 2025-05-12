@@ -466,14 +466,14 @@ if [[ "${is_laptop}" == true ]]; then
   systemctl enable fwupd.service
 fi
 
+echo "Installing and configuring GRUB for UEFI..."
+grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+sed -i 's/^GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cryptdevice=$crypto_UUID:cryptroot root=/dev/mapper/cryptroot"/' /etc/default/grub
+grub-mkconfig -o /boot/grub/grub.cfg
+
 echo "Rebuilding initramfs..."
 sed -i 's/\(HOOKS=.*block\)/\1 encrypt/' /etc/mkinitcpio.conf
 mkinitcpio -P
-
-echo "Installing and configuring GRUB for UEFI..."
-grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
-sed -i 's/^GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cryptdevice=$crypto_UUID:cryptroot"/' /etc/default/grub
-grub-mkconfig -o /boot/grub/grub.cfg
 EOF
 
 echo "Configuration complete! You can now unmount /mnt and reboot into your new Arch system. Hope you enjoyed your coffee."
