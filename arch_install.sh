@@ -472,8 +472,8 @@ mkinitcpio -P
 
 echo "Installing and configuring GRUB for UEFI..."
 mkdir -p /boot/efi
-sed -i "/GRUB_ENABLE_CRYPTODISK=y/ s/^[[:space:]]*#\s*//" /etc/default/grub
 grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB
+sed -i 's/^GRUB_CMDLINE_LINUX=""/GRUB_CMDLINE_LINUX="cryptdevice=$crypto_UUID:cryptroot"/' /etc/default/grub
 grub-mkconfig -o /boot/grub/grub.cfg
 EOF
 
