@@ -213,8 +213,8 @@ else
     mount "$second_part" /mnt
 fi
 
-echo "Mounting boot partition on /mnt/boot/efi..."
-mount --mkdir "$esp_part" /mnt/boot/efi
+echo "Mounting boot partition on /mnt/boot/..."
+mount --mkdir "$esp_part" /mnt/boot/
 
 
 
