@@ -448,7 +448,6 @@ systemctl enable sshd
 systemctl enable acpid
 systemctl enable cups.service
 systemctl enable smartd.service
-systemctl enable fwupd.service
 
 if [[ "${do_vpn}" == true ]]; then
   systemctl enable strongswan xl2tpd
@@ -464,6 +463,7 @@ fi
 
 if [[ "${is_laptop}" == true ]]; then
   systemctl enable tlp thermald upower
+  systemctl enable fwupd.service
 fi
 
 echo "Rebuilding initramfs..."
