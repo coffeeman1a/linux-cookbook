@@ -222,7 +222,7 @@ mount --mkdir "$esp_part" /mnt/boot/
 
 echo "Installing main packages..."
 pacstrap -K /mnt \
-    base linux linux-firmware \
+    base base-devel linux linux-firmware \
     networkmanager \
     dialog \
     mtools dosfstools \
@@ -336,6 +336,11 @@ pacstrap -K /mnt \
 
 # fzf
 #   - general-purpose command-line fuzzy finder for file and history search
+
+if [[ "$crypto" == true ]]; then
+    echo "Installing additional encryption packages..."
+    pacstrap -K /mnt lvm2 cryptsetup
+fi
 
 if [[ -n "$cpu_model" ]]; then
     case "$cpu_model" in
@@ -468,7 +473,7 @@ if [[ "${is_laptop}" == true ]]; then
 fi
 
 echo "Rebuilding initramfs..."
-sed -i 's/\(HOOKS=.*block\)/\1 encrypt/' /etc/mkinitcpio.conf
+sed -i 's/\(HOOKS=.*block\)/\1 encrypt lvm2/' /etc/mkinitcpio.conf
 mkinitcpio -P
 
 echo "Installing and configuring GRUB for UEFI..."
