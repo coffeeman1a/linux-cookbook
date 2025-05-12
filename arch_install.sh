@@ -472,7 +472,7 @@ sed -i 's/\(HOOKS=.*block\)/\1 encrypt/' /etc/mkinitcpio.conf
 mkinitcpio -P
 
 echo "Installing and configuring GRUB for UEFI..."
-grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB "$esp_part"
 sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=""/GRUB_CMDLINE_LINUX_DEFAULT="cryptdevice=$crypto_UUID:cryptroot root=UUID=$raw_UUID"/' /etc/default/grub
 grub-mkconfig -o /boot/grub/grub.cfg
 EOF
