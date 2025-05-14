@@ -190,7 +190,7 @@ format_partition() {
     if [[ "$fs" == "fat32" ]]; then
         mkfs.fat -F 32 $target_partition
     else
-        mkfs.$fs $target_partition
+        mkfs.$fs -f $target_partition
     fi
     echo "Partition $new_partition formatted successfully"
 }
