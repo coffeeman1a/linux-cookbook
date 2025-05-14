@@ -281,6 +281,8 @@ else
     create_partition "$target" 100 $fs_type true
 fi
 
+partprobe "$target_disk"
+
 case "$target" in
   /dev/nvme*|/dev/mmcblk*)
     esp_part="${target}p1"
