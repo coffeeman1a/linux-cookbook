@@ -138,13 +138,13 @@ clear_and_create_gpt() { # clear_and_create_gpt(target_disk [/dev/sda]) -> void
 
     echo "Cleaning disk $target_disk"
     wipefs -a $target_disk
-    check_gpt $target_disk
-    if [[ $? -ne 0 ]]; then
+    # check_gpt $target_disk
+    # if [[ $? -ne 0 ]]; then
         echo "Creating GPT partition table on $target_disk..."
         parted $target_disk -s mklabel gpt
-    else
-        echo "GPT already exists on $target_disk."
-    fi
+    # else
+    #     echo "GPT already exists on $target_disk."
+    # fi
 }
 
 check_gpt() { # check_gpt() -> 0 | 1 
