@@ -170,7 +170,7 @@ create_partition() { # create_partition(target_disk [/dev/sda], size_G [32], fs 
         local size_MB=$((size_G * 1024))
 
         echo "Creating a partition on disk $target_disk with fs $fs"
-            parted $target_disk mkpart primary 1MiB ${size_MB}MiB
+            parted $target_disk mkpart primary 1MiB ${size_G}GB
         echo "Partition $new_partition created successfully"
     fi
 
@@ -201,7 +201,7 @@ create_luks_partition() { # create_luks_partition(target_disk [/dev/sda], use_re
     else
         local size_MB=$((size_G * 1024))
         echo "Creating a luks container on disk $target_disk"
-            parted "$target_disk" mkpart cryptroot $start_point ${size_MB}MiB
+            parted "$target_disk" mkpart cryptroot $start_point ${size_G}GB
         echo "Partition $new_partition created successfully"
     fi
 }
