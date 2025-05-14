@@ -152,8 +152,8 @@ check_gpt() { # check_gpt() -> 0 | 1
 create_partition() { # create_partition(target_disk [/dev/sda], size_G [32], fs [ext4], use_remaining [true | false]]) -> void
     local target_disk=$1
     local size_G=$2
-    # local fs=$3
-    local use_remaining=$3
+    local fs=$3
+    local use_remaining=$4
 
     last_partition=$(lsblk -n -o NAME $target_disk | grep -o '[0-9]*$' | sort -n | tail -n 1)
     if [[ -z "$last_partition" ]]; then
@@ -164,15 +164,21 @@ create_partition() { # create_partition(target_disk [/dev/sda], size_G [32], fs 
 
     if [[ "$use_remaining" == "true" ]]; then
         start_point=$(parted $target_disk unit MiB print | grep -A 1 "Disk $target_disk" | tail -n 1 | awk '{print $3}')
-        echo "Creating a partition on disk $target_disk, using the remaning space..."
-        parted $target_disk mkpart primary $start_point 100%
+        echo "Creating a partition on disk $target_disk with fs $fs, using the remaning space..."
+        parted $target_disk mkpart primary $fs $start_point 100%
     else
         local size_MB=$((size_G * 1024))
 
-        echo "Creating a partition on disk $target_disk"
-            parted $target_disk mkpart primary 1MiB ${size_MB}MiB
+        echo "Creating a partition on disk $target_disk with fs $fs"
+            parted $target_disk mkpart primary $fs 1MiB ${size_G}GB
         echo "Partition $new_partition created successfully"
     fi
+}
+
+create_boot_partition() {
+    local target_disk=$1
+    parted $target_disk --script mkpart ESP fat32 1MiB 1024MiB
+    parted $target_disk --script set 1 esp on
 }
 
 format_partition() {
@@ -206,7 +212,7 @@ create_luks_partition() { # create_luks_partition(target_disk [/dev/sda], use_re
     else
         local size_MB=$((size_G * 1024))
         echo "Creating a luks container on disk $target_disk"
-            parted "$target_disk" mkpart cryptroot $start_point ${size_MB}MiB
+            parted "$target_disk" mkpart cryptroot $start_point ${size_G}GB
         echo "Partition $new_partition created successfully"
     fi
 }
@@ -267,11 +273,11 @@ echo "Marking partitions on $target..."
 clear_and_create_gpt "$target"
 
 if [[ "$crypto" == true ]]; then
-    create_partition "$target" 1 fat32 false
+    create_boot_partition "$target"
     create_luks_partition "$target" 100 true
 else
-    create_partition "$target" 1 false
-    create_partition "$target" 100 true
+    create_boot_partition "$target"
+    create_partition "$target" 100 $fs_type true
 fi
 
 case "$target" in
