@@ -271,7 +271,7 @@ if [[ "$crypto" == true ]]; then
     create_luks_partition "$target" 100 true
 else
     create_partition "$target" 1 fat32 false
-    create_partition "$target" 100 $fs_type false
+    create_partition "$target" 100 $fs_type true
 fi
 
 case "$target" in
