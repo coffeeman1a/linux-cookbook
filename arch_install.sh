@@ -157,7 +157,7 @@ create_partition() { # create_partition(target_disk [/dev/sda], size_G [32], fs 
 
     last_partition=$(lsblk -n -o NAME $target_disk | grep -o '[0-9]*$' | sort -n | tail -n 1)
     if [[ -z "$last_partition" ]]; then
-        last_partition = 0
+        last_partition=0
     fi
 
     new_partition=$((last_partition + 1))
