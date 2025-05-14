@@ -232,7 +232,6 @@ echo "Hostname: $hostname"
 lsblk
 read -rp "Enter target disk (for example, /dev/sda): " target; echo
 select_fs()
-
 read -rsp "Enter root password: " root_pw; echo
 read -rsp "Repeat root password: " root_pw_test; echo
 if [[ "$root_pw" != "$root_pw_test" ]]; then 
