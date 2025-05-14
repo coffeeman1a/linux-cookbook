@@ -173,12 +173,17 @@ create_partition() { # create_partition(target_disk [/dev/sda], size_G [32], fs 
             parted $target_disk mkpart primary 1MiB ${size_G}GB
         echo "Partition $new_partition created successfully"
     fi
+}
 
-    echo "Formating new partition..."
+format_partition() {
+    local target_partition=$1
+    local fs=$2
+
+    echo "Formating partition $target_partition..."
     if [[ "$fs" == "fat32" ]]; then
-        mkfs.fat -F 32 $new_partition
+        mkfs.fat -F 32 $target_partition
     else
-        mkfs.$fs $new_partition
+        mkfs.$fs $target_partition
     fi
     echo "Partition $new_partition formatted successfully"
 }
@@ -295,8 +300,8 @@ esac
 #         mkpart primary ext4 1024MiB 100%
 # fi
 
-# echo "Formatting EFI System Partition ($esp_part)..."
-# mkfs.fat -F32 "$esp_part"
+echo "Formatting EFI System Partition ($esp_part)..."
+format_partition $esp_part fat32
 
 if [[ "$crypto" == true ]]; then
     echo "Setting up LUKS on $second_part..."
@@ -305,7 +310,7 @@ if [[ "$crypto" == true ]]; then
     printf "%s" "$luks_pw" | \
         cryptsetup open "$second_part" cryptroot --key-file=-
     echo "Formatting decrypted root (/dev/mapper/cryptroot)..."
-    mkfs.$fs_type /dev/mapper/cryptroot
+    format_partition /dev/mapper/cryptroot mkfs.$fs_type 
     
     echo "Mounting root partition on /mnt..."
     mount /dev/mapper/cryptroot /mnt
@@ -316,7 +321,7 @@ if [[ "$crypto" == true ]]; then
     mount --mkdir "$esp_part" /mnt/boot/
 else
     echo "Formatting root partition ($second_part)..."
-    mkfs.$fs_type "$second_part"
+    format_partition $second_part $fs_type
     echo "Mounting root partition on /mnt..."
     mount "$second_part" /mnt
     echo "Mounting boot partition on /mnt/boot/efi..."
