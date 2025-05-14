@@ -13,6 +13,7 @@ hostname="arch"
 crypto=false
 fs_type=""
 crypto_UUID=""
+raw_UUID=""
 
 print_help() {
   cat <<EOF
@@ -192,7 +193,7 @@ format_partition() {
     else
         mkfs.$fs -f $target_partition
     fi
-    echo "Partition $new_partition formatted successfully"
+    echo "Partition $target_partition formatted successfully"
 }
 
 create_luks_partition() { # create_luks_partition(target_disk [/dev/sda], use_remaining [true | false])
