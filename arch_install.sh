@@ -11,6 +11,7 @@ locale=""
 tz=""
 hostname="arch"
 crypto=false
+fs_type=""
 
 print_help() {
   cat <<EOF
@@ -113,6 +114,102 @@ cat <<'EOF'
 ===============================================================================================
 EOF
 
+select_fs() { # select_fs() -> void
+    echo "Available file systems:"
+    echo "1) ext4 2) btrfs"
+    read -p "Select fs (1-2): [1 by default]" fs_choice
+
+    case $fs_choice in
+        1)
+            fs_type="ext4"
+            ;;
+        2)
+            fs_type="btrfs"
+            ;;
+        *)
+            echo "Using default option..."
+            fs_type="ext4"
+    esac
+    echo "Selected fs: $fs_type"
+}
+
+clear_and_create_gpt() { # clear_and_create_gpt(target_disk [/dev/sda]) -> void
+    local target_disk=$1
+
+    echo "Cleaning disk $target_disk"
+    wipefs -a $target_disk
+    check_gpt $target_disk
+    if [[ $? -ne 0 ]]; then
+        echo "Creating GPT partition table on $target_disk..."
+        parted $target_disk mklabel gpt
+    else
+        echo "GPT already exists on $target_disk."
+    fi
+}
+
+check_gpt() { # check_gpt() -> 0 | 1 
+    local disk=$1
+    parted $disk print | grep -q "Partition Table: gpt"
+    return $?
+}
+
+create_partition() { # create_partition(target_disk [/dev/sda], size_G [32], fs [ext4], use_remaining [true | false]]) -> void
+    local target_disk=$1
+    local size_G=$2
+    local fs=$3
+    local use_remaining=$4
+
+    last_partition=$(lsblk -n -o NAME $disk | grep -o '[0-9]*$' | sort -n | tail -n 1)
+    if [[ -z "$last_partition" ]]; then
+        last_partition = 0
+    fi
+
+    new_partition=$((last_partition + 1))
+
+    if [[ "$use_remaining" == "true" ]]; then
+        start_point=$(parted $target_disk unit MiB print | grep -A 1 "Disk $target_disk" | tail -n 1 | awk '{print $3}')
+        echo "Creating a partition on disk $target_disk with fs $fs, using the remaning space..."
+        parted $target_disk mkpart primary $start_point 100%
+    else
+        local size_MB=$((size_G * 1024))
+
+        echo "Creating a partition on disk $target_disk with fs $fs"
+            parted $target_disk mkpart primary 1MiB ${size_MB}MiB
+        echo "Partition $new_partition created successfully"
+    fi
+
+    echo "Formating new partition..."
+    if [[ "$fs" == "fat32" ]]; then
+        mkfs.fat -F 32 $new_partition
+    else
+        mkfs.$fs $new_partition
+    fi
+    echo "Partition $new_partition formatted successfully"
+}
+
+create_luks_partition() { # create_luks_partition(target_disk [/dev/sda], use_remaining [true | false])
+    local target_disk=$1
+    local size_G=$2
+    local use_remaining=$4
+
+    last_partition=$(lsblk -n -o NAME $disk | grep -o '[0-9]*$' | sort -n | tail -n 1)
+    if [[ -z "$last_partition" ]]; then
+        last_partition = 0
+    fi
+
+    new_partition=$((last_partition + 1))
+    if [[ "$use_remaining" == "true" ]]; then
+        start_point=$(parted $target_disk unit MiB print | grep -A 1 "Disk $target_disk" | tail -n 1 | awk '{print $3}')
+        echo "Creating a luks container on disk $target_disk, using the remaning space..."
+        parted "$target_disk" mkpart cryptroot $start_point 100%
+    else
+        local size_MB=$((size_G * 1024))
+        echo "Creating a luks container on disk $target_disk"
+            parted "$target_disk" mkpart cryptroot $start_point ${size_MB}MiB
+        echo "Partition $new_partition created successfully"
+    fi
+}
+
 echo -e "Welcome to arch linux installation helper! Go grep some coffee\n"
 
 echo "CPU model: ${cpu_model:-not specified}"
@@ -133,7 +230,8 @@ fi
 echo "Hostname: $hostname"
 
 lsblk
-read -rp "Enter target partition: " target; echo
+read -rp "Enter target disk (for example, /dev/sda): " target; echo
+select_fs()
 
 read -rsp "Enter root password: " root_pw; echo
 read -rsp "Repeat root password: " root_pw_test; echo
@@ -166,18 +264,14 @@ if [[ "$ok" != "y" && "$ok" != "Y" ]]; then
 fi
 
 echo "Marking partitions on $target..."
+clear_and_create_gpt "$target"
+
 if [[ "$crypto" == true ]]; then
-    parted "$target" --script \
-        mklabel gpt \
-        mkpart ESP fat32 1MiB 1024MiB \
-        set 1 esp on \
-        mkpart cryptroot 1024MiB 100%
+    create_partition "$target" 1 fat32 false
+    create_luks_partition "$target" 100 true
 else
-    parted "$target" --script \
-        mklabel gpt \
-        mkpart ESP fat32 1MiB 1024MiB \
-        set 1 esp on \
-        mkpart primary ext4 1024MiB 100%
+    create_partition "$target" 1 fat32 false
+    create_partition "$target" 100 $fs_type false
 fi
 
 case "$target" in
@@ -191,8 +285,23 @@ case "$target" in
     ;;
 esac
 
-echo "Formatting EFI System Partition ($esp_part)..."
-mkfs.fat -F32 "$esp_part"
+# echo "Marking partitions on $target..."
+# if [[ "$crypto" == true ]]; then
+#     parted "$target" --script \
+#         mklabel gpt \
+#         mkpart ESP fat32 1MiB 1024MiB \
+#         set 1 esp on \
+#         mkpart cryptroot 1024MiB 100%
+# else
+#     parted "$target" --script \
+#         mklabel gpt \
+#         mkpart ESP fat32 1MiB 1024MiB \
+#         set 1 esp on \
+#         mkpart primary ext4 1024MiB 100%
+# fi
+
+# echo "Formatting EFI System Partition ($esp_part)..."
+# mkfs.fat -F32 "$esp_part"
 
 if [[ "$crypto" == true ]]; then
     echo "Setting up LUKS on $second_part..."
@@ -201,24 +310,23 @@ if [[ "$crypto" == true ]]; then
     printf "%s" "$luks_pw" | \
         cryptsetup open "$second_part" cryptroot --key-file=-
     echo "Formatting decrypted root (/dev/mapper/cryptroot)..."
-    mkfs.ext4 /dev/mapper/cryptroot
+    mkfs.$fs_type /dev/mapper/cryptroot
     
     echo "Mounting root partition on /mnt..."
     mount /dev/mapper/cryptroot /mnt
     crypto_UUID=$(blkid -s UUID -o value "$second_part")
     raw_UUID=$(blkid -s UUID -o value /dev/mapper/cryptroot)
+
+    echo "Mounting boot partition on /mnt/boot/..."
+    mount --mkdir "$esp_part" /mnt/boot/
 else
     echo "Formatting root partition ($second_part)..."
-    mkfs.ext4 "$second_part"
+    mkfs.$fs_type "$second_part"
     echo "Mounting root partition on /mnt..."
     mount "$second_part" /mnt
+    echo "Mounting boot partition on /mnt/boot/efi..."
+    mount --mkdir "$esp_part" /mnt/boot/efi
 fi
-
-echo "Mounting boot partition on /mnt/boot/..."
-mount --mkdir "$esp_part" /mnt/boot/
-
-
-
 
 echo "Installing main packages..."
 pacstrap -K /mnt \
@@ -420,7 +528,9 @@ cat >> /etc/fstab <<FSTAB
 /swapfile none swap defaults 0 0
 FSTAB
 
-echo "cryptroot UUID="$crypto_UUID" none luks" >> /etc/crypttab
+if [[ $crypto == "true" ]]; then
+    echo "cryptroot UUID="$crypto_UUID" none luks" >> /etc/crypttab
+fi
 
 echo "Setting timezone..."
 ln -sf /usr/share/zoneinfo/\${tz:-UTC} /etc/localtime
@@ -473,12 +583,18 @@ if [[ "${is_laptop}" == true ]]; then
 fi
 
 echo "Rebuilding initramfs..."
-sed -i 's/\(HOOKS=.*block\)/\1 encrypt lvm2/' /etc/mkinitcpio.conf
+if [[ $crypto == "true" ]]; then
+    sed -i 's/\(HOOKS=.*block\)/\1 encrypt lvm2/' /etc/mkinitcpio.conf
+fi
 mkinitcpio -P
 
 echo "Installing and configuring GRUB for UEFI..."
-grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB "$target"
-sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=$crypto_UUID:cryptroot root=UUID=$raw_UUID"/' /etc/default/grub
+if [[ $crypto == "true" ]]; then
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB "$target"
+    sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=$crypto_UUID:cryptroot root=UUID=$raw_UUID"/' /etc/default/grub
+else
+    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB "$target"
+fi
 grub-mkconfig -o /boot/grub/grub.cfg
 EOF
 
