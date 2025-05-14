@@ -163,7 +163,7 @@ create_partition() { # create_partition(target_disk [/dev/sda], size_G [32], fs 
     new_partition=$((last_partition + 1))
 
     if [[ "$use_remaining" == "true" ]]; then
-        start_point=$(parted $target_disk unit MiB print | grep -A 1 "Disk $target_disk" | tail -n 1 | awk '{print $3}')
+        start_point=$(parted $target_disk unit MiB print | awk '/^[[:space:]]*[0-9]+/ { end=$3 } END{ print end }')
         echo "Creating a partition on disk $target_disk with fs $fs, using the remaning space..."
         parted $target_disk mkpart primary $fs $start_point 100%
     else
@@ -201,12 +201,12 @@ create_luks_partition() { # create_luks_partition(target_disk [/dev/sda], use_re
 
     last_partition=$(lsblk -n -o NAME $disk | grep -o '[0-9]*$' | sort -n | tail -n 1)
     if [[ -z "$last_partition" ]]; then
-        last_partition = 0
+        last_partition=0
     fi
 
     new_partition=$((last_partition + 1))
     if [[ "$use_remaining" == "true" ]]; then
-        start_point=$(parted $target_disk unit MiB print | grep -A 1 "Disk $target_disk" | tail -n 1 | awk '{print $3}')
+        start_point=$(parted $target_disk unit MiB print | awk '/^[[:space:]]*[0-9]+/ { end=$3 } END{ print end }')
         echo "Creating a luks container on disk $target_disk, using the remaning space..."
         parted "$target_disk" mkpart cryptroot $start_point 100%
     else
