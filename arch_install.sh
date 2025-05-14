@@ -12,6 +12,7 @@ tz=""
 hostname="arch"
 crypto=false
 fs_type=""
+crypto_UUID=""
 
 print_help() {
   cat <<EOF
