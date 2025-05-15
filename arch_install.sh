@@ -652,5 +652,6 @@ else
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB "$target"
 fi
 grub-mkconfig -o /boot/grub/grub.cfg
-echo "Configuration complete! You can now unmount /mnt and reboot into your new Arch system. Hope you enjoyed your coffee."
 EOF
+
+echo "Configuration complete! You can now unmount /mnt and reboot into your new Arch system. Hope you enjoyed your coffee."
