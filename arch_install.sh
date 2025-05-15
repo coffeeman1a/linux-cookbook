@@ -644,7 +644,6 @@ if [[ $crypto == "true" ]]; then
     sed -i 's/\(HOOKS=.*block\)/\1 encrypt lvm2/' /etc/mkinitcpio.conf
 fi
 mkinitcpio -P
-
 echo "Installing and configuring GRUB for UEFI..."
 if [[ $crypto == "true" ]]; then
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB "$target"
