@@ -320,21 +320,51 @@ if [[ "$crypto" == true ]]; then
     printf "%s" "$luks_pw" | \
         cryptsetup open "$second_part" cryptroot --key-file=-
     echo "Formatting decrypted root (/dev/mapper/cryptroot)..."
-    format_partition /dev/mapper/cryptroot mkfs.$fs_type 
-    
-    echo "Mounting root partition on /mnt..."
-    mount /dev/mapper/cryptroot /mnt
-    crypto_UUID=$(blkid -s UUID -o value "$second_part")
-    raw_UUID=$(blkid -s UUID -o value /dev/mapper/cryptroot)
+    root_dev=/dev/mapper/cryptroot
+    raw_UUID=$(blkid -s UUID -o value "$second_part")
+    crypto_UUID=$(blkid -s UUID -o value "$root_dev")
+else
+    root_dev="$second_part"
+fi
 
-    echo "Mounting boot partition on /mnt/boot/..."
+echo "Formatting root partition ($root_dev)..."
+if [[ "$fs_type" == "btrfs" ]]; then
+    mkfs.btrfs -f "$root_dev"
+else
+    mkfs.${fs_type} "$root_dev"
+fi
+
+echo "Mounting root partition on /mnt..."
+mount "$root_dev" /mnt
+
+if [[ "$fs_type" == "btrfs" ]]; then
+    echo "Setting up subvolumes..."
+    btrfs subvolume create /mnt/@
+    btrfs subvolume create /mnt/@swap
+    btrfs subvolume create /mnt/@home
+    btrfs subvolume create /mnt/@var
+    btrfs subvolume create /mnt/@games
+    btrfs subvolume create /mnt/@snapshots
+
+    umount /mnt
+
+    mount -o noatime,compress=zstd,space_cache=v2,subvol=@ "$root_dev" /mnt
+    mkdir -p /mnt/home
+    mount -o noatime,compress=zstd,space_cache=v2,subvol=@home "$root_dev" /mnt/home
+    mkdir -p /mnt/.snapshots
+    mount -o noatime,subvol=@snapshots "$root_dev" /mnt/.snapshots
+    mkdir -p /mnt/games
+    mount -o noatime,space_cache=v2,subvol=@games "$root_dev" /mnt/games
+    mkdir -p /mnt/swap
+    mount -o noatime,space_cache=v2,subvol=@swap "$root_dev" /mnt/swap
+    mkdir -p /mnt/var
+    mount -o noatime,subvol=@var "$root_dev" /mnt/var
+fi
+
+echo "Mounting boot partition on /mnt/boot/..."
+if [[ "$crypto" == "true" ]]; then
     mount --mkdir "$esp_part" /mnt/boot/
 else
-    echo "Formatting root partition ($second_part)..."
-    format_partition $second_part $fs_type
-    echo "Mounting root partition on /mnt..."
-    mount "$second_part" /mnt
-    echo "Mounting boot partition on /mnt/boot/efi..."
     mount --mkdir "$esp_part" /mnt/boot/efi
 fi
 
@@ -529,17 +559,28 @@ arch-chroot /mnt /bin/bash <<EOF
 set -euo pipefail
 
 echo "Creating 4 GiB swap-file..."
-fallocate -l 4G /swapfile
-chmod 600       /swapfile
-mkswap          /swapfile
-swapon /swapfile
 
-cat >> /etc/fstab <<FSTAB
-/swapfile none swap defaults 0 0
-FSTAB
+if [[ "$fs_type" == "btrfs" ]]; then
+    chattr +C /swap
+    dd if=/dev/zero of=/swap/swapfile bs=1M count=2048 status=progress
+    chmod 600       /swap/swapfile
+    mkswap          /swap/swapfile
+    swapon /swap/swapfile
+    cat >> /etc/fstab <<FSTAB
+    /swap/swapfile none swap defaults 0 0
+    FSTAB
+else
+    fallocate -l 4G /swapfile
+    chmod 600       /swapfile
+    mkswap          /swapfile
+    swapon /swapfile
+    cat >> /etc/fstab <<FSTAB
+    /swapfile none swap defaults 0 0
+    FSTAB
+fi  
 
 if [[ $crypto == "true" ]]; then
-    echo "cryptroot UUID="$crypto_UUID" none luks" >> /etc/crypttab
+    echo "cryptroot UUID="$raw_UUID" none luks" >> /etc/crypttab
 fi
 
 echo "Setting timezone..."
@@ -601,7 +642,7 @@ mkinitcpio -P
 echo "Installing and configuring GRUB for UEFI..."
 if [[ $crypto == "true" ]]; then
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB "$target"
-    sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=$crypto_UUID:cryptroot root=UUID=$raw_UUID"/' /etc/default/grub
+    sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=$raw_UUID:cryptroot root=UUID=$crypto_UUID"/' /etc/default/grub
 else
     grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB "$target"
 fi
