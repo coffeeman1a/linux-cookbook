@@ -561,22 +561,28 @@ set -euo pipefail
 echo "Creating 4 GiB swap-file..."
 
 if [[ "$fs_type" == "btrfs" ]]; then
+    mkdir -p /swap
     chattr +C /swap
-    dd if=/dev/zero of=/swap/swapfile bs=1M count=2048 status=progress
-    chmod 600       /swap/swapfile
-    mkswap          /swap/swapfile
-    swapon /swap/swapfile
+
+    dd if=/dev/zero of=/swap/swapfile bs=1M count=4096 status=progress
+
+    chmod 600 /swap/swapfile
+    mkswap  /swap/swapfile
+    swapon  /swap/swapfile
+
     cat >> /etc/fstab <<FSTAB
-    /swap/swapfile none swap defaults 0 0
-    FSTAB
+/swap/swapfile none swap defaults 0 0
+FSTAB
 else
     fallocate -l 4G /swapfile
+
     chmod 600       /swapfile
     mkswap          /swapfile
     swapon /swapfile
+    
     cat >> /etc/fstab <<FSTAB
-    /swapfile none swap defaults 0 0
-    FSTAB
+/swapfile none swap defaults 0 0
+FSTAB
 fi  
 
 if [[ $crypto == "true" ]]; then
