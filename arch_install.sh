@@ -201,7 +201,7 @@ create_luks_partition() { # create_luks_partition(target_disk [/dev/sda], use_re
     local size_G=$2
     local use_remaining=$3
 
-    last_partition=$(lsblk -n -o NAME $disk | grep -o '[0-9]*$' | sort -n | tail -n 1)
+    last_partition=$(lsblk -n -o NAME $target_disk | grep -o '[0-9]*$' | sort -n | tail -n 1)
     if [[ -z "$last_partition" ]]; then
         last_partition=0
     fi
