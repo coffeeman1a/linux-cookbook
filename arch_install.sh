@@ -653,9 +653,9 @@ mkinitcpio -P
 rc=$?
 set -e
 
-+if [[ $rc -ne 0 ]]; then
-+  echo "⚠️ Warning: mkinitcpio returned code $rc, but continuing anyway."
-+fi
+if [[ \$rc -ne 0 ]]; then
+  echo "⚠️ Warning: mkinitcpio returned code \$rc, but continuing anyway."
+fi
 
 echo "Installing and configuring GRUB for UEFI..."
 if [[ $crypto == "true" ]]; then
