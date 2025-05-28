@@ -594,12 +594,13 @@ if [[ $crypto == "true" ]]; then
 fi
 
 echo "Setting timezone..."
-ln -sf /usr/share/zoneinfo/\${tz:-UTC} /etc/localtime
+ln -sf "/usr/share/zoneinfo/$tz" /etc/localtime
 hwclock --systohc
+timedatectl set-timezone "$tz"
 
 echo "Generating locale..."
-if [[ -n "\${locale:-}" ]]; then
-  sed -i "s/^#\${locale}\.UTF-8/\${locale}.UTF-8/" /etc/locale.gen
+if [[ -n "${locale:-}" ]]; then
+  sed -i "s/^#${locale}\.UTF-8/${locale}.UTF-8/" /etc/locale.gen
 fi
 sed -i "s/^#en_US.UTF-8/en_US.UTF-8/" /etc/locale.gen
 echo "LANG=en_US.UTF-8" > /etc/locale.conf
@@ -644,10 +645,18 @@ if [[ "${is_laptop}" == true ]]; then
 fi
 
 echo "Rebuilding initramfs..."
+set +e
 if [[ $crypto == "true" ]]; then
     sed -i 's/\(HOOKS=.*block\)/\1 encrypt lvm2/' /etc/mkinitcpio.conf
 fi
 mkinitcpio -P
+rc=$?
+set -e
+
++if [[ $rc -ne 0 ]]; then
++  echo "⚠️ Warning: mkinitcpio returned code $rc, but continuing anyway."
++fi
+
 echo "Installing and configuring GRUB for UEFI..."
 if [[ $crypto == "true" ]]; then
     grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB "$target"
