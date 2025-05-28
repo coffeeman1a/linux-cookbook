@@ -187,7 +187,7 @@ format_partition() {
     local target_partition=$1
     local fs=$2
 
-    echo "Formating partition $target_partition..."
+    echo "Formatting partition $target_partition..."
     if [[ "$fs" == "fat32" ]]; then
         mkfs.fat -F 32 $target_partition
     else
@@ -320,6 +320,7 @@ if [[ "$crypto" == true ]]; then
     printf "%s" "$luks_pw" | \
         cryptsetup open "$second_part" cryptroot --key-file=-
     echo "Formatting decrypted root (/dev/mapper/cryptroot)..."
+
     root_dev=/dev/mapper/cryptroot
     raw_UUID=$(blkid -s UUID -o value "$second_part")
     crypto_UUID=$(blkid -s UUID -o value "$root_dev")
