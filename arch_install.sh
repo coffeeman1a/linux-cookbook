@@ -322,8 +322,6 @@ if [[ "$crypto" == true ]]; then
     echo "Formatting decrypted root (/dev/mapper/cryptroot)..."
 
     root_dev=/dev/mapper/cryptroot
-    raw_UUID=$(blkid -s UUID -o value "$second_part")
-    crypto_UUID=$(blkid -s UUID -o value "$root_dev")
 else
     root_dev="$second_part"
 fi
@@ -333,6 +331,11 @@ if [[ "$fs_type" == "btrfs" ]]; then
     mkfs.btrfs -f "$root_dev"
 else
     mkfs.${fs_type} "$root_dev"
+fi
+
+if [[ "$crypto" == true ]]; then
+    raw_UUID=$(blkid -s UUID -o value "$second_part")
+    crypto_UUID=$(blkid -s UUID -o value "$root_dev")
 fi
 
 echo "Mounting root partition on /mnt..."
