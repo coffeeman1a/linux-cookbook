@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strings"
 
@@ -22,6 +23,10 @@ type Config struct {
 var C Config
 
 func Init() {
+	log.SetOutput(os.Stderr)
+	// Добавляем префикс и метки времени в формате YYYY/MM/DD hh:mm:ss
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.SetPrefix("[WEBHOOK-HANDLER] ")
 	godotenv.Load()
 	proxmoxNames := strings.Split(os.Getenv("PROXMOX_LIST"), ",")
 	cfg := Config{Proxmox: make(map[string]ProxmoxInstance, len(proxmoxNames))}
@@ -38,6 +43,8 @@ func Init() {
 		}
 		cfg.Proxmox[name] = inst
 	}
+
+	log.Printf("Proxmox instances defined: %s", proxmoxNames)
 
 	C = cfg
 }

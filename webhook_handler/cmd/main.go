@@ -5,26 +5,34 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"simple_http_server/internal/config"
 	"simple_http_server/internal/models"
 	"time"
 )
 
+// healthcheck endpoint
 func pingHandler(w http.ResponseWriter, req *http.Request) {
+	log.Printf("[PING] %s %s from %s", req.Method, req.URL.Path, req.RemoteAddr)
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "pong\n")
+	fmt.Fprint(w, "pong\n")
 }
 
+// start-vm endpoint
 func startVMHandler(w http.ResponseWriter, req *http.Request) {
+	log.Printf("[START-VM] %s %s from %s", req.Method, req.URL.Path, req.RemoteAddr)
+
 	var reqBody models.StartVMRequest
 	if err := json.NewDecoder(req.Body).Decode(&reqBody); err != nil {
+		log.Printf("[ERROR] invalid payload: %v", err)
 		http.Error(w, "invalid payload", http.StatusBadRequest)
 		return
 	}
 
 	inst, ok := config.C.Proxmox[reqBody.Cluster]
 	if !ok {
+		log.Printf("[ERROR] unknown cluster: %s", reqBody.Cluster)
 		http.Error(w, "unknown cluster", http.StatusBadRequest)
 		return
 	}
@@ -34,17 +42,21 @@ func startVMHandler(w http.ResponseWriter, req *http.Request) {
 
 	err := startVM(ctx, inst.APIURL, inst.APITokenID, inst.APITokenSecret, reqBody.Node, reqBody.VMID)
 	if err != nil {
+		log.Printf("[ERROR] startVM failed for cluster=%s node=%s vmid=%d: %v", reqBody.Cluster, reqBody.Node, reqBody.VMID, err)
 		resp := models.APIResponse{Success: false, Error: err.Error()}
 		w.WriteHeader(http.StatusBadGateway)
 		json.NewEncoder(w).Encode(resp)
 		return
 	}
 
+	log.Printf("[INFO] VM started: cluster=%s node=%s vmid=%d", reqBody.Cluster, reqBody.Node, reqBody.VMID)
 	json.NewEncoder(w).Encode(models.APIResponse{Success: true})
 }
 
+// Proxmox API call
 func startVM(ctx context.Context, apiURL, tokenID, tokenSecret, node string, vmID int) error {
 	url := fmt.Sprintf("%s/nodes/%s/qemu/%d/status/start", apiURL, node, vmID)
+	log.Printf("[CALL] POST %s", url)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
@@ -54,15 +66,10 @@ func startVM(ctx context.Context, apiURL, tokenID, tokenSecret, node string, vmI
 	req.Header.Set("Accept", "application/json")
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 
-	client := &http.Client{
-		Transport: tr,
-		Timeout:   10 * time.Second,
-	}
+	client := &http.Client{Transport: tr, Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("do request: %w", err)
@@ -75,9 +82,11 @@ func startVM(ctx context.Context, apiURL, tokenID, tokenSecret, node string, vmI
 	return nil
 }
 
+// Wrapper function enforcing HTTP method
 func methodHandler(method string, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != method {
+			log.Printf("[WARN] method not allowed: expected %s, got %s", method, req.Method)
 			w.Header().Set("Allow", method)
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			fmt.Fprintf(w, "method %s is not allowed\n", req.Method)
@@ -91,5 +100,8 @@ func main() {
 	config.Init()
 	http.HandleFunc("/ping", methodHandler("GET", pingHandler))
 	http.HandleFunc("/start-vm", methodHandler("POST", startVMHandler))
-	http.ListenAndServe(":"+config.C.Port, nil)
+	log.Printf("[INFO] Server started on port: %s", config.C.Port)
+	if err := http.ListenAndServe(":"+config.C.Port, nil); err != nil {
+		log.Fatalf("[FATAL] ListenAndServe failed: %v", err)
+	}
 }
