@@ -16,9 +16,16 @@ type ProxmoxInstance struct {
 	APITokenSecret string
 }
 
+type TelegramInstance struct {
+	APIURL   string
+	BotToken string
+	ChatID   string
+}
+
 type Config struct {
-	Port    string
-	Proxmox map[string]ProxmoxInstance
+	Port     string
+	Proxmox  map[string]ProxmoxInstance
+	Telegram TelegramInstance
 }
 
 var C Config
@@ -45,6 +52,13 @@ func Init() {
 		}
 		cfg.Proxmox[name] = inst
 	}
+
+	cfg.Telegram.APIURL = os.Getenv("TELEGRAM_API_URL")
+	if cfg.Telegram.APIURL == "" {
+		cfg.Telegram.APIURL = "https://api.telegram.org"
+	}
+	cfg.Telegram.BotToken = os.Getenv("TELEGRAM_BOT_TOKEN")
+	cfg.Telegram.ChatID = os.Getenv("TELEGRAM_CHAT_ID")
 
 	log.Printf("Proxmox instances defined: %s", proxmoxNames)
 

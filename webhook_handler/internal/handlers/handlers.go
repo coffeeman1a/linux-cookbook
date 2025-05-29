@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -46,9 +47,11 @@ func StartVMHandler(w http.ResponseWriter, req *http.Request) {
 		resp := models.APIResponse{Success: false, Error: err.Error()}
 		w.WriteHeader(http.StatusBadGateway)
 		json.NewEncoder(w).Encode(resp)
+		notifyOOMFailed(reqBody.Node, reqBody.VMID, err)
 		return
 	}
 	log.Printf("[INFO] VM started: cluster=%s node=%s vmid=%d", reqBody.Cluster, reqBody.Node, reqBody.VMID)
+	notifyOOMResolved(reqBody.Node, reqBody.VMID)
 
 	err = deleteOOMGauge(ctx, config.C.Proxmox[reqBody.Cluster].PUSHGATEWAY, reqBody.Cluster, reqBody.Node, reqBody.VMID)
 	if err != nil {
@@ -115,6 +118,60 @@ func deleteOOMGauge(ctx context.Context, apiURL, cluster, node string, vm_id int
 		return fmt.Errorf("bad status: %s", resp.Status)
 	}
 	return nil
+}
+
+func sendMessage(text string) error {
+	botToken := config.C.Telegram.BotToken
+	chatID := config.C.Telegram.ChatID
+	apiURL := config.C.Telegram.APIURL
+
+	url := fmt.Sprintf("%s/bot%s/sendMessage", apiURL, botToken)
+
+	body := models.SendTelegramMessageReq{
+		ChatID: chatID,
+		Text:   text,
+	}
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return fmt.Errorf("marshal telegram payload: %w", err)
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(buf))
+	if err != nil {
+		return fmt.Errorf("post to telegram: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("telegram API returned %s", resp.Status)
+	}
+	return nil
+}
+
+func notifyOOMResolved(node string, vmID int) {
+	text := fmt.Sprintf(
+		"✅ OOM устранён\n"+
+			"Нода: %s\n"+
+			"ВМ: %d\n",
+		node, vmID,
+	)
+	if err := sendMessage(text); err != nil {
+		log.Printf("[ERROR] не удалось отправить уведомление об успехе: %v", err)
+	}
+}
+
+func notifyOOMFailed(node string, vmID int, err error) {
+	text := fmt.Sprintf(
+		"❌ OOM не устранён\n"+
+			"Нода: %s\n"+
+			"ВМ: %d\n"+
+			"%v",
+		node, vmID, err,
+	)
+	if err := sendMessage(text); err != nil {
+		log.Printf("[ERROR] не удалось отправить уведомление об ошибке: %v", err)
+	}
 }
 
 // Wrapper function enforcing HTTP method

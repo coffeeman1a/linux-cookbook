@@ -10,3 +10,8 @@ type APIResponse struct {
 	Success bool   `json:"success"`
 	Error   string `json:"error,omitempty"`
 }
+
+type SendTelegramMessageReq struct {
+	ChatID string `json:"chat_id"`
+	Text   string `json:"text"`
+}
