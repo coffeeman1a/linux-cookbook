@@ -10,6 +10,7 @@ import (
 
 type ProxmoxInstance struct {
 	Name           string
+	PUSHGATEWAY    string
 	APIURL         string
 	APITokenID     string
 	APITokenSecret string
@@ -38,6 +39,7 @@ func Init() {
 		inst := ProxmoxInstance{
 			Name:           name,
 			APIURL:         os.Getenv("PROXMOX_" + upper + "_URL"),
+			PUSHGATEWAY:    os.Getenv("PUSHGATEWAY_" + upper + "_URL"),
 			APITokenID:     os.Getenv("PROXMOX_" + upper + "_TOKEN_ID"),
 			APITokenSecret: os.Getenv("PROXMOX_" + upper + "_TOKEN_SECRET"),
 		}

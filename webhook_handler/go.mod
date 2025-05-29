@@ -1,4 +1,4 @@
-module simple_http_server
+module webhook-handler
 
 go 1.24.1
 
