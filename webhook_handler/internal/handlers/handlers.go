@@ -157,7 +157,7 @@ func notifyOOMResolved(node string, vmID int) {
 		node, vmID,
 	)
 	if err := sendMessage(text); err != nil {
-		log.Printf("[ERROR] не удалось отправить уведомление об успехе: %v", err)
+		log.Printf("[ERROR] norifyOOMResolved failed to send status: %v", err)
 	}
 }
 
@@ -170,7 +170,7 @@ func notifyOOMFailed(node string, vmID int, err error) {
 		node, vmID, err,
 	)
 	if err := sendMessage(text); err != nil {
-		log.Printf("[ERROR] не удалось отправить уведомление об ошибке: %v", err)
+		log.Printf("[ERROR] notifyOOMFailed failed to send status: %v", err)
 	}
 }
 
