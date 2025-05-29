@@ -136,7 +136,11 @@ func sendMessage(text string) error {
 		return fmt.Errorf("marshal telegram payload: %w", err)
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	client := &http.Client{Transport: tr, Timeout: 10 * time.Second}
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(buf))
 	if err != nil {
 		return fmt.Errorf("post to telegram: %w", err)
