@@ -14,6 +14,7 @@ crypto=false
 fs_type=""
 crypto_UUID=""
 raw_UUID=""
+legacy=false
 
 print_help() {
   cat <<EOF
@@ -29,6 +30,7 @@ print_help() {
     --locale <xx_YY.UTF-8>     Enable additional locale (default: en_US.UTF-8)
     --hostname <name>          Set system hostname (default: arch)
     --crypto                   Encrypt root partition with LUKS
+    --legacy                   Legacy BIOS
     -h, --help                 Show this help message and exit
 EOF
 }
@@ -89,6 +91,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --crypto)
             crypto=true
+            shift
+            ;;
+        --legacy)
+            legacy=true
             shift
             ;;
         -h|--help)
@@ -659,10 +665,19 @@ fi
 
 echo "Installing and configuring GRUB for UEFI..."
 if [[ $crypto == "true" ]]; then
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB "$target"
+    if [[ $legacy == "true" ]]; then
+        grub-install --target=i386-pc "$target"
+    else
+        grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB "$target"
+    fi
     sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet"/GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet cryptdevice=UUID=$raw_UUID:cryptroot root=UUID=$crypto_UUID"/' /etc/default/grub
 else
-    grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB "$target"
+    if [[ $legacy == "true" ]]; then
+         grub-install --target=i386-pc "$target"
+    else
+        grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=GRUB "$target"
+    fi
+
 fi
 grub-mkconfig -o /boot/grub/grub.cfg
 EOF
