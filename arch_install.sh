@@ -190,8 +190,17 @@ create_partition() { # create_partition(target_disk [/dev/sda], size_G [32], fs 
 
 create_boot_partition() {
     local target_disk=$1
-    parted $target_disk --script mkpart ESP fat32 1MiB 1024MiB
-    parted $target_disk --script set 1 esp on
+    local legacy=$2  # true или false
+
+    if [[ "$legacy" == "true" ]]; then
+        echo "Creating Legacy /boot partition..."
+        parted "$target_disk" --script mkpart primary ext4 1MiB 1024MiB
+        parted "$target_disk" --script set 1 boot on
+    else
+        echo "Creating UEFI ESP partition..."
+        parted "$target_disk" --script mkpart ESP fat32 1MiB 1024MiB
+        parted "$target_disk" --script set 1 esp on
+    fi
 }
 
 format_partition() {
