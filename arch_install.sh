@@ -207,12 +207,27 @@ format_partition() {
     local target_partition=$1
     local fs=$2
 
-    echo "Formatting partition $target_partition..."
-    if [[ "$fs" == "fat32" ]]; then
-        mkfs.fat -F 32 $target_partition
-    else
-        mkfs.$fs -f $target_partition
-    fi
+    echo "Formatting partition $target_partition as $fs..."
+
+    case "$fs" in
+        fat32)
+            mkfs.fat -F 32 "$target_partition"
+            ;;
+        ext4|ext3|ext2)
+            mkfs."$fs" -F "$target_partition"
+            ;;
+        xfs)
+            mkfs.xfs -f "$target_partition"
+            ;;
+        btrfs)
+            mkfs.btrfs "$target_partition" 
+            ;;
+        *)
+            echo "Unsupported filesystem: $fs"
+            return 1
+            ;;
+    esac
+
     echo "Partition $target_partition formatted successfully"
 }
 
@@ -295,10 +310,10 @@ echo "Marking partitions on $target..."
 clear_and_create_table "$target"
 
 if [[ "$crypto" == true ]]; then
-    create_boot_partition "$target"
+    create_boot_partition "$target" "$legacy"
     create_luks_partition "$target" 100 true
 else
-    create_boot_partition "$target"
+    create_boot_partition "$target" "$legacy"
     create_partition "$target" 100 $fs_type true
 fi
 
