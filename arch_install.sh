@@ -141,14 +141,19 @@ select_fs() { # select_fs() -> void
     echo "Selected fs: $fs_type"
 }
 
-clear_and_create_gpt() { # clear_and_create_gpt(target_disk [/dev/sda]) -> void
+clear_and_create_table() { # clear_and_create_table(target_disk [/dev/sda]) -> void
     local target_disk=$1
 
     echo "Cleaning disk $target_disk"
     wipefs -a $target_disk
 
-    echo "Creating GPT partition table on $target_disk..."
-    parted $target_disk -s mklabel gpt
+    if [[ "$legacy" == "true" ]]; then
+        echo "Creating MSDOS (MBR) partition table on $target_disk..."
+        parted $target_disk -s mklabel msdos
+    else
+        echo "Creating GPT partition table on $target_disk..."
+        parted $target_disk -s mklabel gpt
+    fi
 }
 
 check_gpt() { # check_gpt() -> 0 | 1 
@@ -278,7 +283,7 @@ if [[ "$ok" != "y" && "$ok" != "Y" ]]; then
 fi
 
 echo "Marking partitions on $target..."
-clear_and_create_gpt "$target"
+clear_and_create_table "$target"
 
 if [[ "$crypto" == true ]]; then
     create_boot_partition "$target"
@@ -316,8 +321,13 @@ esac
 #         mkpart primary ext4 1024MiB 100%
 # fi
 
-echo "Formatting EFI System Partition ($esp_part)..."
-format_partition $esp_part fat32
+if [[ "$legacy" == "true" ]]; then
+    echo "Formatting system partition ($esp_part) as ext4 for Legacy BIOS..."
+    format_partition $esp_part ext4
+else
+    echo "Formatting EFI System Partition ($esp_part) as FAT32 for UEFI..."
+    format_partition $esp_part fat32
+fi
 
 if [[ "$crypto" == true ]]; then
     echo "Setting up LUKS on $second_part..."
@@ -372,7 +382,7 @@ if [[ "$fs_type" == "btrfs" ]]; then
 fi
 
 echo "Mounting boot partition on /mnt/boot/..."
-if [[ "$crypto" == "true" ]]; then
+if [[ "$crypto" == "true" || "$legacy" == "true" ]]; then
     mount --mkdir "$esp_part" /mnt/boot/
 else
     mount --mkdir "$esp_part" /mnt/boot/efi
