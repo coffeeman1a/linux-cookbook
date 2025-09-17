@@ -125,7 +125,7 @@ EOF
 select_fs() { # select_fs() -> void
     echo "Available file systems:"
     echo "1) ext4 2) btrfs"
-    read -p "Select fs (1-2): [1 by default]" fs_choice
+    read -p "Select fs (1-2): [1 by default] " fs_choice
 
     case $fs_choice in
         1)
@@ -414,7 +414,7 @@ fi
 
 echo "Installing main packages..."
 pacstrap -K /mnt \
-    base base-devel linux linux-firmware \
+    base base-devel linux-lts linux-lts-headers linux-firmware \
     networkmanager \
     dialog \
     mtools dosfstools \
@@ -441,7 +441,7 @@ pacstrap -K /mnt \
     jq \
     fzf
 
-# base, linux, linux-firmware
+# base, base-devel, linux, linux-lts linux-lts-headers, linux-firmware
 #   - base: essential Arch Linux base system
 #   - linux: the Linux kernel
 #   - linux-firmware: firmware files for various hardware components (Wi-Fi, GPU, etc.)
